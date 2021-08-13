@@ -23,7 +23,8 @@ func main() {
 	client := pb.NewUserServiceClient(connection)
 	//AddUser(client)
 	//AddUserVerbose(client)
-	AddUsers(client)
+	//AddUsers(client)
+	AddUserStramBoth(client)
 
 }
 
@@ -117,4 +118,74 @@ func AddUsers(client pb.UserServiceClient) {
 	}
 
 	fmt.Println(res)
+}
+
+// Implementação bi-direcional
+func AddUserStramBoth(client pb.UserServiceClient) {
+	stream, err := client.AddUserStreamBoth(context.Background())
+	if err != nil {
+		log.Fatalf("Error creating request: %v", err)
+	}
+	reqs := []*pb.User{
+		&pb.User{
+			Id:    "w1",
+			Name:  "wagner 1",
+			Email: "wagner@gmail.com",
+		},
+		&pb.User{
+			Id:    "w2",
+			Name:  "wagner 2",
+			Email: "wagner@gmail.com",
+		},
+		&pb.User{
+			Id:    "w3",
+			Name:  "wagner 3",
+			Email: "wagner@gmail.com",
+		},
+		&pb.User{
+			Id:    "w4",
+			Name:  "wagner 4",
+			Email: "wagner@gmail.com",
+		},
+		&pb.User{
+			Id:    "w5",
+			Name:  "wagner 5",
+			Email: "wagner@gmail.com",
+		},
+	}
+
+	//aPENAS SEGURA O PROGRAMA
+	wait := make(chan int)
+
+	// Função assincrona, thread aberta e controlada pelo GO
+	go func() {
+		for _, req := range reqs {
+			fmt.Println("Sending user: ", req.Name)
+			stream.Send(req)
+			time.Sleep(time.Second * 2)
+		}
+		stream.CloseSend()
+	}()
+
+	// Função assincrona que fica em loop escutando e dando o status
+	go func() {
+		for {
+			res, err := stream.Recv()
+			if err == io.EOF {
+				break
+			}
+
+			if err != nil {
+				log.Fatalf("Error receiving data: %v", err)
+				break
+			}
+
+			fmt.Printf("Recebendo user %v com status: %v\n", res.GetUser().GetName(), res.GetStatus())
+		}
+
+		// Mata o programa
+		close(wait)
+	}()
+
+	<-wait
 }
